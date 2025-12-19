@@ -1,18 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAudio } from '../audio/AudioContext';
 
 // Track which track is currently playing globally
 let currentPlayingTrackId = null;
+let currentRepl = null;
 const listeners = new Set();
 
 function notifyListeners() {
   listeners.forEach(fn => fn());
 }
 
+// Stop currently playing track
+export function stopCurrentTrack() {
+  if (currentRepl) {
+    try {
+      currentRepl.stop();
+      if (window.hush) window.hush();
+    } catch (e) {
+      console.error('Error stopping:', e);
+    }
+    currentRepl = null;
+  }
+  currentPlayingTrackId = null;
+  notifyListeners();
+}
+
 function Player({ code, trackId, onPlay }) {
-  const { initialize, isInitialized, stop } = useAudio();
+  const { initialize, isInitialized } = useAudio();
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const containerRef = useRef(null);
 
   // Subscribe to global playing state changes
   useEffect(() => {
@@ -23,12 +40,20 @@ function Player({ code, trackId, onPlay }) {
     return () => listeners.delete(handleUpdate);
   }, [trackId]);
 
+  // Cleanup hidden container on unmount
+  useEffect(() => {
+    return () => {
+      if (containerRef.current && containerRef.current.parentNode) {
+        containerRef.current.parentNode.removeChild(containerRef.current);
+        containerRef.current = null;
+      }
+    };
+  }, []);
+
   const handlePlay = async () => {
     if (isPlaying) {
       // Stop this track
-      stop();
-      currentPlayingTrackId = null;
-      notifyListeners();
+      stopCurrentTrack();
       return;
     }
 
@@ -37,7 +62,7 @@ function Player({ code, trackId, onPlay }) {
     try {
       // Stop any other playing track first
       if (currentPlayingTrackId !== null) {
-        stop();
+        stopCurrentTrack();
       }
 
       // Initialize audio if needed
@@ -49,15 +74,54 @@ function Player({ code, trackId, onPlay }) {
         await onPlay();
       }
 
-      // For now, we just mark as playing - actual playback would need REPL integration
-      // In a real implementation, we'd create a temporary REPL instance
+      // Dynamic import Strudel modules
+      const { StrudelMirror } = await import('@strudel/codemirror');
+      const { webaudioOutput, getAudioContext, initAudio } = await import('@strudel/webaudio');
+      const { transpiler } = await import('@strudel/transpiler');
+      const { prebake } = await import('@strudel/repl/prebake.mjs');
+
+      // Ensure audio is ready
+      await initAudio();
+      const audioContext = getAudioContext();
+
+      // Create a hidden container for the REPL - must be truly invisible
+      if (!containerRef.current) {
+        containerRef.current = document.createElement('div');
+        containerRef.current.style.cssText = `
+          position: fixed !important;
+          left: -99999px !important;
+          top: -99999px !important;
+          width: 1px !important;
+          height: 1px !important;
+          overflow: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          visibility: hidden !important;
+        `;
+        containerRef.current.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(containerRef.current);
+      }
+
+      // Create REPL instance
+      const repl = new StrudelMirror({
+        defaultOutput: webaudioOutput,
+        getTime: () => audioContext.currentTime,
+        transpiler,
+        root: containerRef.current,
+        initialCode: code,
+        prebake,
+        solo: true,
+      });
+
+      // Evaluate and play
+      await repl.evaluate(code);
+
+      currentRepl = repl;
       currentPlayingTrackId = trackId;
       notifyListeners();
-
-      // Show a message that they should open the editor
-      console.log('To play this track, copy the code to the editor');
     } catch (error) {
       console.error('Failed to play:', error);
+      stopCurrentTrack();
     } finally {
       setLoading(false);
     }
@@ -71,18 +135,13 @@ function Player({ code, trackId, onPlay }) {
         disabled={loading}
       >
         {loading ? (
-          <span className="loading-icon">...</span>
+          <span className="loading-spinner"></span>
         ) : isPlaying ? (
-          <span className="pause-icon">■</span>
+          <span className="pause-icon">&#9632;</span>
         ) : (
-          <span className="play-icon">▶</span>
+          <span className="play-icon">&#9654;</span>
         )}
       </button>
-      <div className="player-info">
-        <span className="player-status">
-          {isPlaying ? 'Playing' : 'Click to preview'}
-        </span>
-      </div>
     </div>
   );
 }

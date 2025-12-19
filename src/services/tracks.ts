@@ -19,9 +19,9 @@ export interface CreateTrackInput {
 // In-memory fallback storage
 let inMemoryTracks: Track[] = [];
 
-export async function getTracks(): Promise<Track[]> {
+export async function getTracks(limit = 20, offset = 0): Promise<Track[]> {
   if (!isSupabaseConfigured()) {
-    return inMemoryTracks;
+    return inMemoryTracks.slice(offset, offset + limit);
   }
 
   const { data, error } = await supabase
@@ -30,7 +30,8 @@ export async function getTracks(): Promise<Track[]> {
       *,
       profiles:author_id (username)
     `)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     console.error('Error fetching tracks:', error);
@@ -39,7 +40,7 @@ export async function getTracks(): Promise<Track[]> {
 
   return (data || []).map(track => ({
     ...track,
-    author_name: track.profiles?.username || 'Anonymous',
+    author_name: track.author_name || track.profiles?.username || 'Anonymous',
   }));
 }
 
@@ -64,7 +65,7 @@ export async function getTrackById(id: string): Promise<Track | null> {
 
   return {
     ...data,
-    author_name: data.profiles?.username || 'Anonymous',
+    author_name: data.author_name || data.profiles?.username || 'Anonymous',
   };
 }
 
@@ -149,6 +150,78 @@ export async function searchTracks(query: string): Promise<Track[]> {
 
   return (data || []).map(track => ({
     ...track,
-    author_name: track.profiles?.username || 'Anonymous',
+    author_name: track.author_name || track.profiles?.username || 'Anonymous',
   }));
+}
+
+// Comments
+export interface Comment {
+  id: string;
+  track_id: string;
+  user_id: string | null;
+  author_name: string;
+  content: string;
+  created_at: string;
+}
+
+export async function getComments(trackId: string, limit = 20, offset = 0): Promise<Comment[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*')
+    .eq('track_id', trackId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+
+  // Reverse to show oldest first but load newest first for pagination
+  return (data || []).reverse();
+}
+
+export async function getCommentsCount(trackId: string): Promise<number> {
+  if (!isSupabaseConfigured()) {
+    return 0;
+  }
+
+  const { count, error } = await supabase
+    .from('comments')
+    .select('*', { count: 'exact', head: true })
+    .eq('track_id', trackId);
+
+  if (error) {
+    console.error('Error fetching comments count:', error);
+    return 0;
+  }
+
+  return count || 0;
+}
+
+export async function addComment(trackId: string, content: string, authorName = 'Anonymous'): Promise<Comment | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({
+      track_id: trackId,
+      content,
+      author_name: authorName,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding comment:', error);
+    return null;
+  }
+
+  return data;
 }

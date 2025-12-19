@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { StrudelMirror } from '@strudel/codemirror';
 import { getDrawContext } from '@strudel/draw';
 import { webaudioOutput } from '@strudel/webaudio';
@@ -6,9 +7,10 @@ import { transpiler } from '@strudel/transpiler';
 import { prebake } from '@strudel/repl/prebake.mjs';
 import { analysers, getAnalyzerData } from 'superdough';
 import ChatTerminal from '../components/ChatTerminal';
-import ThemeSwitcher from '../components/ThemeSwitcher';
 import { aiAutocomplete } from '../extensions/autocomplete';
 import { useAudio } from '../audio/AudioContext';
+import { getCurrentUser, signOut } from '../services/auth';
+import AuthModal from '../components/AuthModal';
 
 // Theme configuration
 const THEMES = {
@@ -57,6 +59,13 @@ function AudioVisualizer({ audioContext, isPlaying, waveformType, theme }) {
   const ROTATION_SPEED = 0.01;
   const themeConfig = THEMES[theme] || THEMES.acid;
 
+  // Clear history when playback state changes
+  useEffect(() => {
+    if (!isPlaying) {
+      historyRef.current = [];
+    }
+  }, [isPlaying]);
+
   useEffect(() => {
     if (!audioContext) return;
 
@@ -95,12 +104,26 @@ function AudioVisualizer({ audioContext, isPlaying, waveformType, theme }) {
 
       const analyser = analysers[1];
 
-      if (analyser) {
+      if (analyser && isPlaying) {
         const timeData = getAnalyzerData('time', 1);
-        const currentWave = Array.from(timeData).slice(0, 128);
-        historyRef.current.unshift(currentWave);
-        if (historyRef.current.length > NUM_LAYERS) {
-          historyRef.current.pop();
+        // Ensure we have valid data before processing
+        const rawData = timeData && timeData.length > 0 ? Array.from(timeData) : null;
+
+        if (rawData) {
+          // Normalize and amplify the waveform data for visibility
+          const maxVal = Math.max(...rawData.map(Math.abs), 0.001);
+          const normalizedData = rawData.slice(0, 128).map(v => (v / maxVal) * 0.8);
+
+          historyRef.current.unshift(normalizedData);
+          if (historyRef.current.length > NUM_LAYERS) {
+            historyRef.current.pop();
+          }
+        } else {
+          // Push empty wave if no data
+          historyRef.current.unshift(new Array(128).fill(0));
+          if (historyRef.current.length > NUM_LAYERS) {
+            historyRef.current.pop();
+          }
         }
 
         for (let layer = historyRef.current.length - 1; layer >= 0; layer--) {
@@ -138,7 +161,7 @@ function AudioVisualizer({ audioContext, isPlaying, waveformType, theme }) {
             sum += Math.abs(waveData[j] || 0);
           }
           const avgAmplitude = sum / points;
-          const amplitudeMod = 1 + avgAmplitude * 0.8;
+          const amplitudeMod = 1 + avgAmplitude * 1.2;
 
           ctx.beginPath();
 
@@ -151,7 +174,7 @@ function AudioVisualizer({ audioContext, isPlaying, waveformType, theme }) {
 
             for (let i = 0; i < points; i++) {
               const v = waveData[i] || 0;
-              const amplitude = v * 80 * (1 - depth * 0.5);
+              const amplitude = v * 120 * (1 - depth * 0.3);
               const x = xStart + i * sliceWidth;
               const y = yBase - amplitude;
               if (i === 0) ctx.moveTo(x, y);
@@ -163,7 +186,7 @@ function AudioVisualizer({ audioContext, isPlaying, waveformType, theme }) {
             for (let i = 0; i <= points; i++) {
               const angle = (i / points) * Math.PI * 2 + layerRotation;
               const v = waveData[i % points] || 0;
-              const radiusMod = 1 + v * 0.4;
+              const radiusMod = 1 + v * 0.6;
               const radius = baseRadius * radiusMod * shrinkFactor;
               const x = centerX + Math.cos(angle) * radius;
               const y = centerY + Math.sin(angle) * radius;
@@ -299,7 +322,7 @@ function FileExplorer({ files, currentFile, onSelect, onNew, onNewDemo, onDelete
         ))}
       </div>
       <div className="file-explorer-footer">
-        <button className="file-btn reset" onClick={onReset} title="Reset All Files">RESET</button>
+        <Link to="/explore" className="file-btn explore" title="Explore Tracks">EXPLORE</Link>
       </div>
     </div>
   );
@@ -367,6 +390,20 @@ function Editor() {
   const [localIsPlaying, setLocalIsPlaying] = useState(false);
   const [waveformType, setWaveformType] = useState('triangle');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const [user, setUser] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Load user on mount
+  useEffect(() => {
+    getCurrentUser().then(setUser);
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut();
+    setUser(null);
+    setShowUserMenu(false);
+  };
 
   // Apply theme to document
   useEffect(() => {
@@ -582,12 +619,14 @@ function Editor() {
         {/* Header */}
         <div className="top-bar">
           <div className="logo-section">
-            <span>codeandcyanide</span>
+            <Link to="/" className="site-logo site-logo-small">CODE&CYANIDE</Link>
+            <nav className="breadcrumb-nav">
+              <Link to="/" className="nav-link">HOME</Link>
+              <span className="nav-separator">/</span>
+              <span className="nav-current">EDITOR</span>
+            </nav>
           </div>
           <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-            <ThemeSwitcher theme={theme} onChange={setTheme} />
-            <WaveformSelector waveformType={waveformType} onChange={setWaveformType} />
-            <button className="cy-btn save" onClick={saveCurrentFile}>SAVE</button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
               <span>AUDIO_ENGINE</span>
               <div className={`status-indicator ${audioContext ? 'active' : ''}`} />
@@ -598,6 +637,34 @@ function Editor() {
             >
               {localIsPlaying ? 'HALT EXECUTION' : 'EXECUTE SEQUENCE'}
             </button>
+
+            {/* User Account Section */}
+            {user ? (
+              <div className="user-menu-container">
+                <button
+                  className="user-menu-btn"
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                >
+                  <span className="user-avatar">{(user.username || user.email || 'U')[0].toUpperCase()}</span>
+                  <span className="user-name">{user.username || user.email?.split('@')[0] || 'User'}</span>
+                  <span className="dropdown-arrow">▼</span>
+                </button>
+                {showUserMenu && (
+                  <div className="user-dropdown">
+                    <div className="dropdown-header">
+                      <span className="dropdown-email">{user.email || 'Guest'}</span>
+                    </div>
+                    <button className="dropdown-item" onClick={handleLogout}>
+                      LOGOUT
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button className="cy-btn primary" onClick={() => setShowAuth(true)}>
+                SIGN IN
+              </button>
+            )}
           </div>
         </div>
 
@@ -634,7 +701,61 @@ function Editor() {
           <div className="panel-label">OSCILLOSCOPE</div>
           <AudioVisualizer audioContext={audioContext} isPlaying={localIsPlaying} waveformType={waveformType} theme={theme} />
         </div>
+
+        {/* Controls under Oscilloscope - styled like EXPLORE button */}
+        <div className="visualizer-controls">
+          <div className="control-group">
+            <span className="control-label">THEME</span>
+            <div className="control-buttons theme-circles">
+              {[
+                { name: 'acid', color: '#00ff9d' },
+                { name: 'orphic', color: '#a855f7' },
+                { name: 'retard', color: '#ffffff' },
+                { name: 'basic-bitch', color: '#000000' }
+              ].map((t) => (
+                <button
+                  key={t.name}
+                  className={`theme-circle ${theme === t.name ? 'active' : ''}`}
+                  onClick={() => setTheme(t.name)}
+                  title={t.name === 'basic-bitch' ? 'Basic Bitch' : t.name.charAt(0).toUpperCase() + t.name.slice(1)}
+                  style={{
+                    '--circle-color': t.color,
+                    '--circle-border': t.name === 'retard' ? '#333' : t.color
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="control-group">
+            <span className="control-label">WAVE</span>
+            <div className="control-buttons">
+              <button
+                className={`control-btn ${waveformType === 'triangle' ? 'active' : ''}`}
+                onClick={() => setWaveformType('triangle')}
+                title="Triangle"
+              >△</button>
+              <button
+                className={`control-btn ${waveformType === 'circle' ? 'active' : ''}`}
+                onClick={() => setWaveformType('circle')}
+                title="Circle"
+              >○</button>
+              <button
+                className={`control-btn ${waveformType === 'line' ? 'active' : ''}`}
+                onClick={() => setWaveformType('line')}
+                title="Line"
+              >―</button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          onSuccess={(u) => { setUser(u); setShowAuth(false); }}
+        />
+      )}
     </>
   );
 }

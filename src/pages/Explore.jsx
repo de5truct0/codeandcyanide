@@ -1,34 +1,87 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getTracks } from '../services/tracks';
 import { useAudio } from '../audio/AudioContext';
 import TrackCard from '../components/TrackCard';
 
+const TRACKS_PER_PAGE = 12;
+
 function Explore() {
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('recent');
+  const [playingTrackId, setPlayingTrackId] = useState(null);
   const { initialize, isInitialized } = useAudio();
   const [theme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const observerRef = useRef(null);
+  const loadMoreRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   useEffect(() => {
-    loadTracks();
+    loadTracks(true);
   }, []);
 
-  const loadTracks = async () => {
-    setLoading(true);
+  // Infinite scroll observer
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          loadMoreTracks();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [loading, loadingMore, hasMore, tracks.length]);
+
+  const loadTracks = async (reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setTracks([]);
+    }
     try {
-      const data = await getTracks();
+      const data = await getTracks(TRACKS_PER_PAGE, 0);
       setTracks(data);
+      setHasMore(data.length >= TRACKS_PER_PAGE);
     } catch (error) {
       console.error('Failed to load tracks:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreTracks = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await getTracks(TRACKS_PER_PAGE, tracks.length);
+      if (data.length === 0) {
+        setHasMore(false);
+      } else {
+        setTracks(prev => [...prev, ...data]);
+        setHasMore(data.length >= TRACKS_PER_PAGE);
+      }
+    } catch (error) {
+      console.error('Failed to load more tracks:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -60,43 +113,48 @@ function Explore() {
     <div className="explore-page">
       <div className="scan-line-anim"></div>
 
-      <div className="explore-header">
-        <div className="explore-nav">
+      <div className="page-nav">
+        <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
+        <nav className="breadcrumb-nav">
           <Link to="/" className="nav-link">HOME</Link>
           <span className="nav-separator">/</span>
           <span className="nav-current">EXPLORE</span>
-        </div>
-        <h1 className="explore-title">Track Catalogue</h1>
-        <p className="explore-subtitle">Discover community-created Strudel patterns</p>
+        </nav>
+        <div className="nav-spacer"></div>
+      </div>
+
+      <div className="explore-header">
+        <h1 className="explore-title">Discover</h1>
+        <p className="explore-subtitle">Community-created Strudel patterns</p>
       </div>
 
       <div className="explore-controls">
         <div className="search-box">
+          <span className="search-icon">&#128269;</span>
           <input
             type="text"
-            placeholder="Search tracks..."
+            placeholder="Search tracks or artists..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
           />
         </div>
         <div className="sort-controls">
-          <span>Sort by:</span>
           <button
             className={`sort-btn ${sortBy === 'recent' ? 'active' : ''}`}
             onClick={() => setSortBy('recent')}
           >
-            Recent
+            New
           </button>
           <button
             className={`sort-btn ${sortBy === 'popular' ? 'active' : ''}`}
             onClick={() => setSortBy('popular')}
           >
-            Popular
+            Hot
           </button>
         </div>
-        <Link to="/upload" className="cy-btn upload-btn">
-          UPLOAD TRACK
+        <Link to="/upload" className="cy-btn primary upload-btn">
+          + Upload
         </Link>
       </div>
 
@@ -107,26 +165,49 @@ function Explore() {
         </div>
       ) : filteredTracks.length === 0 ? (
         <div className="explore-empty">
-          <p>No tracks found</p>
-          {searchQuery && (
+          <div className="empty-icon">&#127925;</div>
+          <h3>No tracks found</h3>
+          {searchQuery ? (
             <button onClick={() => setSearchQuery('')} className="cy-btn secondary">
               Clear Search
             </button>
+          ) : (
+            <p>Be the first to share a pattern!</p>
           )}
           <Link to="/upload" className="cy-btn primary">
-            Be the first to upload!
+            Upload Track
           </Link>
         </div>
       ) : (
-        <div className="tracks-grid">
-          {filteredTracks.map(track => (
-            <TrackCard
-              key={track.id}
-              track={track}
-              onPlay={handleInitialize}
-            />
-          ))}
-        </div>
+        <>
+          <div className="tracks-grid social">
+            {filteredTracks.map(track => (
+              <TrackCard
+                key={track.id}
+                track={track}
+                onPlay={handleInitialize}
+              />
+            ))}
+          </div>
+
+          {/* Infinite scroll sentinel */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="load-more-sentinel">
+              {loadingMore && (
+                <div className="explore-loading">
+                  <div className="loading-spinner"></div>
+                  <p>Loading more...</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!hasMore && tracks.length > 0 && (
+            <div className="end-of-tracks">
+              <p>You've reached the end</p>
+            </div>
+          )}
+        </>
       )}
 
       <div className="explore-footer">

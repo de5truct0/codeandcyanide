@@ -186,6 +186,7 @@ function Home() {
       }}>
         <h1 style={{
           fontFamily: 'Orbitron, monospace',
+          fontWeight: 700,
           fontSize: '4.5rem',
           color: colors.text,
           lineHeight: 1,
@@ -209,7 +210,7 @@ function Home() {
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <Link to="/editor" onClick={handleStart} className="menu-link">START ENGINE</Link>
           <Link to="/explore" className="menu-link">EXPLORE</Link>
-          <button onClick={() => alert('Settings not loaded')} className="menu-link">SETTINGS</button>
+          <Link to="/about" className="menu-link">ABOUT</Link>
 
           {!user ? (
             <button onClick={() => setShowAuth(true)} className="menu-link">LOGIN / SIGN UP</button>
@@ -222,6 +223,66 @@ function Home() {
             </>
           )}
         </nav>
+      </div>
+
+      {/* THEME SWITCHER - Bottom Right */}
+      <div style={{
+        position: 'absolute',
+        bottom: '24px',
+        right: '30px',
+        display: 'flex',
+        gap: '10px',
+        zIndex: 10,
+        alignItems: 'center',
+        background: colors.bg === '#ffffff'
+          ? 'rgba(255, 255, 255, 0.8)'
+          : 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        padding: '8px 14px',
+        borderRadius: '6px',
+        border: `1px solid ${colors.bg === '#ffffff' ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)'}`
+      }}>
+        <span style={{
+          fontFamily: 'Orbitron, monospace',
+          fontSize: '0.6rem',
+          color: colors.text === '#000' ? '#444' : '#777',
+          letterSpacing: '1px'
+        }}>THEME</span>
+        {[
+          { name: 'acid', color: '#00ff9d' },
+          { name: 'orphic', color: '#a855f7' },
+          { name: 'retard', color: '#ffffff' },
+          { name: 'basic-bitch', color: '#111111' }
+        ].map((t) => (
+          <button
+            key={t.name}
+            onClick={() => {
+              setTheme(t.name);
+              localStorage.setItem('theme', t.name);
+            }}
+            title={t.name === 'basic-bitch' ? 'BASIC BITCH' : t.name.toUpperCase()}
+            style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              background: t.color,
+              border: 'none',
+              outline: theme === t.name
+                ? `2px solid ${colors.glow}`
+                : 'none',
+              outlineOffset: '2px',
+              cursor: 'pointer',
+              transition: 'outline 0.15s ease',
+              boxShadow: t.name === 'retard'
+                ? 'inset 0 0 0 1px rgba(0,0,0,0.2)'
+                : t.name === 'basic-bitch'
+                  ? 'inset 0 0 0 1px rgba(255,255,255,0.2)'
+                  : 'none',
+              flexShrink: 0
+            }}
+          />
+        ))}
       </div>
 
       {/* VERSION */}
