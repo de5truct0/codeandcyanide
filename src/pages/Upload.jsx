@@ -17,7 +17,7 @@ function Upload() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [user, setUser] = useState(null);
-  const [theme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const [theme] = useState(() => localStorage.getItem('theme') || 'orphic');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -123,16 +123,20 @@ function Upload() {
     <div className="upload-page">
       <div className="scan-line-anim"></div>
 
-      <div className="page-nav">
-        <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
-        <nav className="breadcrumb-nav">
-          <Link to="/" className="nav-link">HOME</Link>
-          <span className="nav-separator">/</span>
-          <Link to="/explore" className="nav-link">EXPLORE</Link>
-          <span className="nav-separator">/</span>
-          <span className="nav-current">UPLOAD</span>
-        </nav>
-        <div className="nav-spacer"></div>
+      <div className="top-bar">
+        <div className="logo-section">
+          <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
+          <nav className="breadcrumb-nav">
+            <Link to="/" className="nav-link">HOME</Link>
+            <span className="nav-separator">/</span>
+            <Link to="/explore" className="nav-link">EXPLORE</Link>
+            <span className="nav-separator">/</span>
+            <span className="nav-current">UPLOAD</span>
+          </nav>
+        </div>
+        <div className="top-bar-actions">
+          <Link to="/editor" className="cy-btn primary">OPEN EDITOR</Link>
+        </div>
       </div>
 
       <div className="upload-header">

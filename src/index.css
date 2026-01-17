@@ -312,7 +312,7 @@ body:has(.dashboard-container) {
 .terminal-messages {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   padding: 10px 12px;
   font-size: 12px;
   line-height: 1.5;
@@ -360,7 +360,7 @@ body:has(.dashboard-container) {
   flex: 1;
   color: #aaa;
   word-break: break-word;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
 }
 
@@ -532,23 +532,30 @@ body:has(.dashboard-container) {
 .terminal-code-actions {
   display: flex;
   border-top: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.3);
+  min-height: 32px;
 }
 
 .terminal-code-actions button {
   flex: 1;
-  padding: 6px;
+  padding: 8px 12px;
   background: transparent;
   border: none;
+  border-right: 1px solid var(--glass-border);
   font-family: 'Orbitron', sans-serif;
-  font-size: 9px;
+  font-size: 10px;
+  font-weight: 600;
   letter-spacing: 1px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
+.terminal-code-actions button:last-child {
+  border-right: none;
+}
+
 .terminal-review-btn {
   color: #00ffff;
-  border-right: 1px solid var(--glass-border) !important;
 }
 
 .terminal-review-btn:hover {
@@ -572,6 +579,27 @@ body:has(.dashboard-container) {
 .terminal-replace-btn:hover {
   background: #ff4444;
   color: #000;
+}
+
+/* Light theme button visibility */
+[data-theme="retard"] .terminal-code-actions {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="retard"] .terminal-code-actions button {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="retard"] .terminal-review-btn {
+  color: #0088aa;
+}
+
+[data-theme="retard"] .terminal-append-btn {
+  color: #00aa66;
+}
+
+[data-theme="retard"] .terminal-replace-btn {
+  color: #cc3333;
 }
 
 /* Review Panel - Diff View */
@@ -687,12 +715,20 @@ body:has(.dashboard-container) {
 
 /* --- The Header --- */
 .top-bar {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 10px;
+  padding: 20px 30px;
+  background: var(--bg-panel);
+  margin-bottom: 20px;
+}
+
+/* Grid-specific override for Editor */
+.dashboard-container .top-bar {
+  grid-column: 1 / -1;
+  padding: 0 0 10px 0;
+  background: transparent;
 }
 
 .logo-section {
@@ -704,6 +740,12 @@ body:has(.dashboard-container) {
 .logo-section .breadcrumb-nav {
   flex: none;
   justify-content: flex-start;
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .status-indicator {
@@ -760,7 +802,7 @@ body:has(.dashboard-container) {
   gap: 20px;
   padding: 8px 12px;
   background: var(--bg-panel);
-  border: 1px solid var(--accent-glow, var(--primary-glow));
+  border: 1px solid var(--primary-glow);
   border-radius: 4px;
   margin-top: 8px;
   justify-content: center;
@@ -775,7 +817,7 @@ body:has(.dashboard-container) {
 .control-label {
   font-family: 'Orbitron', sans-serif;
   font-size: 9px;
-  color: var(--accent-glow, var(--primary-glow));
+  color: var(--primary-glow);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -3499,8 +3541,8 @@ body:has(.dashboard-container) {
 
 .file-btn.explore {
   width: 100%;
-  border-color: var(--accent-glow);
-  color: var(--accent-glow);
+  border-color: var(--primary-glow);
+  color: var(--primary-glow);
   font-size: 10px;
   padding: 8px;
   text-decoration: none;
@@ -3512,7 +3554,7 @@ body:has(.dashboard-container) {
 }
 
 .file-btn.explore:hover {
-  background: var(--accent-glow);
+  background: var(--primary-glow);
   color: var(--bg-deep);
 }
 

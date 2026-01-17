@@ -15,7 +15,7 @@ function Explore() {
   const [sortBy, setSortBy] = useState('recent');
   const [playingTrackId, setPlayingTrackId] = useState(null);
   const { initialize, isInitialized } = useAudio();
-  const [theme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const [theme] = useState(() => localStorage.getItem('theme') || 'orphic');
   const observerRef = useRef(null);
   const loadMoreRef = useRef(null);
 
@@ -113,14 +113,18 @@ function Explore() {
     <div className="explore-page">
       <div className="scan-line-anim"></div>
 
-      <div className="page-nav">
-        <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
-        <nav className="breadcrumb-nav">
-          <Link to="/" className="nav-link">HOME</Link>
-          <span className="nav-separator">/</span>
-          <span className="nav-current">EXPLORE</span>
-        </nav>
-        <div className="nav-spacer"></div>
+      <div className="top-bar">
+        <div className="logo-section">
+          <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
+          <nav className="breadcrumb-nav">
+            <Link to="/" className="nav-link">HOME</Link>
+            <span className="nav-separator">/</span>
+            <span className="nav-current">EXPLORE</span>
+          </nav>
+        </div>
+        <div className="top-bar-actions">
+          <Link to="/editor" className="cy-btn primary">OPEN EDITOR</Link>
+        </div>
       </div>
 
       <div className="explore-header">

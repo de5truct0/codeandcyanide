@@ -108,7 +108,6 @@ function AudioVisualizer({ audioContext, isPlaying, waveformType, theme }) {
         const timeData = getAnalyzerData('time', 1);
         // Ensure we have valid data before processing
         const rawData = timeData && timeData.length > 0 ? Array.from(timeData) : null;
-
         if (rawData) {
           // Normalize and amplify the waveform data for visibility
           const maxVal = Math.max(...rawData.map(Math.abs), 0.001);
@@ -389,7 +388,7 @@ function Editor() {
   const { audioContext, isPlaying, isInitialized, initialize, setRepl, stop } = useAudio();
   const [localIsPlaying, setLocalIsPlaying] = useState(false);
   const [waveformType, setWaveformType] = useState('triangle');
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'orphic');
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -429,6 +428,77 @@ function Editor() {
     }
     saveFiles(files);
   }, [files]);
+
+  // Auto-inject .analyze(1) into patterns that don't have it
+  const injectAnalyze = (code) => {
+    if (!code) return code;
+
+    // Split into lines and process
+    const lines = code.split('\n');
+    const result = [];
+    let inPattern = false;
+    let patternLines = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Check if this starts a new pattern
+      if (trimmed.startsWith('$:')) {
+        // If we were in a pattern, process it first
+        if (inPattern && patternLines.length > 0) {
+          result.push(...processPattern(patternLines));
+          patternLines = [];
+        }
+        inPattern = true;
+        patternLines.push(line);
+      } else if (inPattern) {
+        // Check if this line continues the pattern (starts with .)
+        if (trimmed.startsWith('.') || trimmed === '') {
+          patternLines.push(line);
+        } else {
+          // Pattern ended, process it
+          result.push(...processPattern(patternLines));
+          patternLines = [];
+          inPattern = false;
+          result.push(line);
+        }
+      } else {
+        result.push(line);
+      }
+    }
+
+    // Process any remaining pattern
+    if (inPattern && patternLines.length > 0) {
+      result.push(...processPattern(patternLines));
+    }
+
+    return result.join('\n');
+  };
+
+  // Process a single pattern to add .analyze(1) if needed
+  const processPattern = (lines) => {
+    const fullPattern = lines.join('\n');
+
+    // Check if pattern already has .analyze(
+    if (fullPattern.includes('.analyze(')) {
+      return lines;
+    }
+
+    // Find the last line that has a method call
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const trimmed = lines[i].trim();
+      if (trimmed.startsWith('.') || (i === 0 && trimmed.startsWith('$:'))) {
+        // Get the indentation of this line
+        const indent = lines[i].match(/^(\s*)/)[1];
+        // Insert .analyze(1) after this line
+        lines.splice(i + 1, 0, indent + '   .analyze(1)');
+        break;
+      }
+    }
+
+    return lines;
+  };
 
   const togglePlay = async () => {
     if (!editorRef.current) return;
@@ -513,20 +583,23 @@ function Editor() {
         });
       };
 
+      // Auto-inject .analyze(1) into AI-generated code
+      const processedCode = injectAnalyze(code);
+
       if (mode === 'replace') {
-        editorRef.current.setCode(code);
+        editorRef.current.setCode(processedCode);
         refreshEditor();
       } else {
         const currentCode = editorRef.current.code || '';
 
         if (!currentCode.trim()) {
-          editorRef.current.setCode(code);
+          editorRef.current.setCode(processedCode);
           refreshEditor();
           return;
         }
 
         const currentSetcps = currentCode.match(/setcps\([^)]+\);?\s*\n?/);
-        const newSetcps = code.match(/setcps\([^)]+\);?\s*\n?/);
+        const newSetcps = processedCode.match(/setcps\([^)]+\);?\s*\n?/);
 
         const patternRegex = /(\/\/[^\n]*\n)?\$:[^\n]+/g;
 
@@ -545,7 +618,7 @@ function Editor() {
         };
 
         const currentPatterns = parsePatterns(currentCode);
-        const newPatterns = parsePatterns(code);
+        const newPatterns = parsePatterns(processedCode);
         const merged = { ...currentPatterns, ...newPatterns };
 
         const finalSetcps = newSetcps ? newSetcps[0].trim() : (currentSetcps ? currentSetcps[0].trim() : 'setcps(120/60/4);');
@@ -619,7 +692,7 @@ function Editor() {
         {/* Header */}
         <div className="top-bar">
           <div className="logo-section">
-            <Link to="/" className="site-logo site-logo-small">CODE&CYANIDE</Link>
+            <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
             <nav className="breadcrumb-nav">
               <Link to="/" className="nav-link">HOME</Link>
               <span className="nav-separator">/</span>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 function About() {
-  const [theme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const [theme] = useState(() => localStorage.getItem('theme') || 'orphic');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -12,14 +12,18 @@ function About() {
     <div className="about-page">
       <div className="scan-line-anim"></div>
 
-      <div className="page-nav">
-        <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
-        <nav className="breadcrumb-nav">
-          <Link to="/" className="nav-link">HOME</Link>
-          <span className="nav-separator">/</span>
-          <span className="nav-current">ABOUT</span>
-        </nav>
-        <div className="nav-spacer"></div>
+      <div className="top-bar">
+        <div className="logo-section">
+          <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
+          <nav className="breadcrumb-nav">
+            <Link to="/" className="nav-link">HOME</Link>
+            <span className="nav-separator">/</span>
+            <span className="nav-current">ABOUT</span>
+          </nav>
+        </div>
+        <div className="top-bar-actions">
+          <Link to="/editor" className="cy-btn primary">OPEN EDITOR</Link>
+        </div>
       </div>
 
       <div className="about-content">

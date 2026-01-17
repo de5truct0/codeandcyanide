@@ -22,7 +22,7 @@ function TrackDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const { initialize, isInitialized } = useAudio();
-  const [theme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const [theme] = useState(() => localStorage.getItem('theme') || 'orphic');
   const commentsEndRef = useRef(null);
   const observerRef = useRef(null);
   const codeRef = useRef(null);
@@ -212,16 +212,20 @@ function TrackDetail() {
     <div className="track-detail-page">
       <div className="scan-line-anim"></div>
 
-      <div className="page-nav">
-        <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
-        <nav className="breadcrumb-nav">
-          <Link to="/" className="nav-link">HOME</Link>
-          <span className="nav-separator">/</span>
-          <Link to="/explore" className="nav-link">EXPLORE</Link>
-          <span className="nav-separator">/</span>
-          <span className="nav-current">TRACK</span>
-        </nav>
-        <div className="nav-spacer"></div>
+      <div className="top-bar">
+        <div className="logo-section">
+          <Link to="/" className="site-logo site-logo-medium">CODE&CYANIDE</Link>
+          <nav className="breadcrumb-nav">
+            <Link to="/" className="nav-link">HOME</Link>
+            <span className="nav-separator">/</span>
+            <Link to="/explore" className="nav-link">EXPLORE</Link>
+            <span className="nav-separator">/</span>
+            <span className="nav-current">TRACK</span>
+          </nav>
+        </div>
+        <div className="top-bar-actions">
+          <Link to="/editor" className="cy-btn primary">OPEN EDITOR</Link>
+        </div>
       </div>
 
       <div className="track-detail-container">

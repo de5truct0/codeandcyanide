@@ -106,22 +106,22 @@ function GeometricCore({ colors }) {
 
 function Home() {
   const { initialize, isInitialized } = useAudio();
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'acid');
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'orphic');
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
 
-  const colors = THEME_COLORS[theme] || THEME_COLORS.acid;
+  const colors = THEME_COLORS[theme] || THEME_COLORS.orphic;
 
   useEffect(() => {
     getCurrentUser().then(setUser);
 
     // Listen for theme changes
-    const handleStorage = () => setTheme(localStorage.getItem('theme') || 'acid');
+    const handleStorage = () => setTheme(localStorage.getItem('theme') || 'orphic');
     window.addEventListener('storage', handleStorage);
 
     // Also check periodically for same-tab changes
     const interval = setInterval(() => {
-      const current = localStorage.getItem('theme') || 'acid';
+      const current = localStorage.getItem('theme') || 'orphic';
       if (current !== theme) setTheme(current);
     }, 500);
 
@@ -188,10 +188,11 @@ function Home() {
           fontFamily: 'Orbitron, monospace',
           fontWeight: 700,
           fontSize: '4.5rem',
-          color: colors.text,
+          color: theme === 'retard' ? '#fff' : theme === 'basic-bitch' ? '#000' : colors.text,
+          WebkitTextStroke: theme === 'retard' ? '2px #000' : theme === 'basic-bitch' ? '2px #fff' : 'none',
           lineHeight: 1,
           marginBottom: '10px',
-          textShadow: `3px 3px 0 ${colors.glow}`
+          textShadow: (theme === 'retard' || theme === 'basic-bitch') ? 'none' : `3px 3px 0 ${colors.glow}`
         }}>
           CODE<br/>&CYANIDE
         </h1>

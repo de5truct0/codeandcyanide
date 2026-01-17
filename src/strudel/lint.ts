@@ -59,7 +59,10 @@ export function lint(code: string): LintResult {
     }
 
     // Check 1: s() with forbidden synth waveforms
-    const sMatch = line.match(/s\s*\(\s*["']([^"']+)["']\s*\)/);
+    // Only match standalone s() calls, not .s() method chains
+    // Valid: n("0").s("square") - using .s() as a method
+    // Invalid: s("square") - using s() function with a synth name
+    const sMatch = line.match(/(?<![.\w])s\s*\(\s*["']([^"']+)["']\s*\)/);
     if (sMatch) {
       const sample = sMatch[1].toLowerCase();
       for (const forbidden of FORBIDDEN_SAMPLE_SYNTHS) {
